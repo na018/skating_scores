@@ -33,13 +33,22 @@ class ISUCollectorTests(unittest.TestCase):
         grand_prix_ids = [event.competition_id for event in GRAND_PRIX_EVENTS]
         target_ids = {event.competition_id for event in TARGET_EVENTS}
 
-        self.assertEqual(len(grand_prix_ids), 34)
+        self.assertEqual(len(grand_prix_ids), 35)
         self.assertEqual(len(grand_prix_ids), len(set(grand_prix_ids)))
         self.assertTrue(set(grand_prix_ids).issubset(target_ids))
         self.assertNotIn("gpjpn2021", target_ids)
         self.assertNotIn("gpjpn2022", target_ids)
         self.assertNotIn("gpjpn2023", target_ids)
-        self.assertTrue({"gpfra2026", "gpcan2026", "gpchn2026"}.issubset(target_ids))
+        self.assertTrue(
+            {"gpfra2026", "gpcan2026", "gpchn2026", "gpusa2026"}.issubset(target_ids)
+        )
+        skate_america = next(
+            event for event in GRAND_PRIX_EVENTS if event.competition_id == "gpusa2026"
+        )
+        self.assertEqual(
+            skate_america.index_url,
+            "https://results.isu.org/results/season2627/gpusa2026/index.htm",
+        )
 
     def test_supported_challenger_events_have_explicit_official_sources(self) -> None:
         challenger_ids = {event.competition_id for event in CHALLENGER_EVENTS}

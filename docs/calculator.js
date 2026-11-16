@@ -4,9 +4,17 @@ const programs = [];
 const formatPoints = (cents) => (cents / 100).toFixed(2);
 const toCents = (value) => Math.round(value * 100);
 const elementValues = typeof ISU_ELEMENT_VALUES === "undefined" ? null : ISU_ELEMENT_VALUES;
-const codes = elementValues ? Object.keys(elementValues).filter((code) => !code.endsWith("b") && code !== "Eu") : [];
+const technicalCallSuffixes = ["q", "<", "<<", "e", "!", "eq", "e<", "e<<", "!q", "!<", "!<<"];
+const allCodes = elementValues
+  ? Object.keys(elementValues).filter((code) => !code.endsWith("b") && code !== "Eu")
+  : [];
+const codes = allCodes.filter((code) => !technicalCallSuffixes.some((suffix) => (
+  allCodes.includes(code.slice(0, -suffix.length))
+)));
 const codeByName = new Map(codes.map((code) => [code.toLowerCase(), code]));
+const anyCodeByName = new Map(allCodes.map((code) => [code.toLowerCase(), code]));
 const cleanJump = /^[1-4](?:T|S|Lo|F|Lz|A)$/;
+const jumpCodes = codes.filter((code) => cleanJump.test(code));
 const jumpNames = { T: "Toe loop", S: "Salchow", Lo: "Loop", F: "Flip", Lz: "Lutz", A: "Axel" };
 const elementNames = {
   USp: "Upright spin", LSp: "Layback spin", CSp: "Camel spin", SSp: "Sit spin",
@@ -33,23 +41,44 @@ function description(code) {
   return code;
 }
 
-function resolveElement(value) {
+function resolveElement(value, edgeCall = "", rotationCall = "") {
   const parts = value.trim().split("+").map((part) => part.trim());
   if (parts.length === 1) {
-    const code = codeByName.get(parts[0].toLowerCase());
+    const enteredCode = anyCodeByName.get(parts[0].toLowerCase());
+    const baseCode = codeByName.get(parts[0].toLowerCase());
+    if (!enteredCode || ((edgeCall || rotationCall) && !baseCode)) return null;
+    const code = edgeCall || rotationCall
+      ? anyCodeByName.get(`${baseCode}${edgeCall}${rotationCall}`.toLowerCase())
+      : enteredCode;
     if (!code) return null;
     const [base, grades] = elementValues[code];
-    return { base, grades };
+    return {
+      base,
+      grades,
+      code,
+      jump: jumpCodes.some((baseCode) => (
+        code === baseCode || technicalCallSuffixes.some((suffix) => code === `${baseCode}${suffix}`)
+      )),
+    };
   }
-  const resolved = parts.map((part) => part.toLowerCase() === "eu" ? "Eu" : codeByName.get(part.toLowerCase()));
+  if (edgeCall || rotationCall) return null;
+  const resolved = parts.map((part) => part.toLowerCase() === "eu" ? "Eu" : anyCodeByName.get(part.toLowerCase()));
   const jumps = resolved.filter((code) => code !== "Eu");
-  if (resolved.some((code) => !code || (code !== "Eu" && !cleanJump.test(code)))
+  const isJump = (code) => jumpCodes.some((baseCode) => (
+    code === baseCode || technicalCallSuffixes.some((suffix) => code === `${baseCode}${suffix}`)
+  ));
+  if (resolved.some((code) => !code || (code !== "Eu" && !isJump(code)))
     || jumps.length < 2 || jumps.length > 3
     || resolved.filter((code) => code === "Eu").length > 1
     || resolved[0] === "Eu" || resolved[resolved.length - 1] === "Eu") return null;
   const values = jumps.map((code) => elementValues[code]);
   const hardest = values.reduce((best, current) => current[0] > best[0] ? current : best);
-  return { base: values.reduce((sum, current) => sum + current[0], 0), grades: hardest[1] };
+  return {
+    base: values.reduce((sum, current) => sum + current[0], 0),
+    grades: hardest[1],
+    code: parts.join("+"),
+    jump: true,
+  };
 }
 
 function updateSuggestions(input, list) {
@@ -57,7 +86,7 @@ function updateSuggestions(input, list) {
   const lastPlus = value.lastIndexOf("+");
   const prefix = lastPlus < 0 ? "" : value.slice(0, lastPlus + 1);
   const query = value.slice(lastPlus + 1).trim().toLowerCase();
-  const candidates = lastPlus < 0 ? codes : [...codes.filter((code) => cleanJump.test(code)), "Eu"];
+  const candidates = lastPlus < 0 ? codes : [...jumpCodes, "Eu"];
   const matches = candidates.filter((code) => code.toLowerCase().includes(query)
     || (!prefix && description(code).toLowerCase().includes(query))).slice(0, 60);
   list.replaceChildren(...matches.map((code) => {
@@ -83,25 +112,52 @@ function addElement(program) {
   element.className = "element-row";
   const listId = `element-options-${++elementId}`;
   element.innerHTML = `
-    <td>
+    <td class="element-input-cell" data-label="Element name">
       <label class="sr-only" for="${listId}-input">Element name</label>
       <input id="${listId}-input" class="element-name" type="text" list="${listId}" placeholder="e.g. 3Lz" autocomplete="off" />
       <datalist id="${listId}"></datalist>
       <span class="element-status"></span>
     </td>
-    <td><span class="element-base">—</span></td>
-    <td>
+    <td data-label="Base value"><span class="element-base">—</span></td>
+    <td data-label="Rotation call">
+      <span class="compact-call">
+        <select class="element-rotation" aria-label="Rotation call">
+          <option value="">None</option>
+          <option value="q">Quarter underrotated (q)</option>
+          <option value="&lt;">Underrotated (&lt;)</option>
+          <option value="&lt;&lt;">Downgraded (&lt;&lt;)</option>
+        </select>
+        <span class="call-symbol" aria-hidden="true">—</span>
+      </span>
+    </td>
+    <td data-label="Edge call">
+      <span class="compact-call">
+        <select class="element-edge" aria-label="Edge call">
+          <option value="">None</option>
+          <option value="!">Unclear edge (!)</option>
+          <option value="e">Wrong edge (e)</option>
+        </select>
+        <span class="call-symbol" aria-hidden="true">—</span>
+      </span>
+    </td>
+    <td data-label="X bonus"><input class="element-bonus" type="checkbox" aria-label="Second-half bonus (x)" /></td>
+    <td data-label="GOE">
         <select class="element-grade" aria-label="GOE grade">
           ${Array.from({ length: 11 }, (_, i) => 5 - i).map((grade) => `<option value="${grade}"${grade === 0 ? " selected" : ""}>${grade > 0 ? "+" : ""}${grade}</option>`).join("")}
         </select>
     </td>
-    <td><strong class="element-score">—</strong></td>
-    <td><button class="remove-element" type="button">Remove</button></td>
+    <td data-label="Total"><strong class="element-score">—</strong></td>
+    <td class="element-remove-cell"><button class="remove-element" type="button">Remove</button></td>
   `;
   const input = element.querySelector(".element-name");
   const list = element.querySelector("datalist");
   input.addEventListener("input", () => updateSuggestions(input, list));
   input.addEventListener("focus", () => updateSuggestions(input, list));
+  element.querySelectorAll(".compact-call select").forEach((select) => {
+    select.addEventListener("change", () => {
+      select.parentElement.querySelector(".call-symbol").textContent = select.value || "—";
+    });
+  });
   updateSuggestions(input, list);
   element.querySelector(".remove-element").addEventListener("click", () => {
     element.remove();
@@ -113,21 +169,43 @@ function addElement(program) {
 
 function elementValue(element) {
   const input = element.querySelector(".element-name");
-  const data = resolveElement(input.value);
+  const rotationCall = element.querySelector(".element-rotation").value;
+  const edgeCall = element.querySelector(".element-edge").value;
+  const bonus = element.querySelector(".element-bonus").checked;
+  const data = resolveElement(input.value, edgeCall, rotationCall);
   const grade = Number(element.querySelector(".element-grade").value);
   const status = element.querySelector(".element-status");
   const score = element.querySelector(".element-score");
   const base = element.querySelector(".element-base");
+  if (data && bonus && !data.jump) {
+    status.textContent = "The X bonus applies to eligible jumps, not this element.";
+    base.textContent = "—";
+    score.textContent = "—";
+    return null;
+  }
   if (!data) {
-    status.textContent = input.value.trim() ? "Select a listed element or enter a supported combination." : "";
+    const combination = input.value.includes("+");
+    status.textContent = input.value.trim()
+      ? combination && (edgeCall || rotationCall)
+        ? "For a combination, add technical-call codes to the affected jump (e.g. 3Lze+3T)."
+        : "Select a listed element or enter a supported combination."
+      : "";
     base.textContent = "—";
     score.textContent = "—";
     return null;
   }
   const goe = grade === 0 ? 0 : data.grades[grade < 0 ? grade + 5 : grade + 4];
-  const value = data.base + goe;
-  status.textContent = "";
-  base.textContent = formatPoints(data.base);
+  const adjustedBase = bonus ? Math.round(data.base * 1.1) : data.base;
+  const value = adjustedBase + goe;
+  status.textContent = [
+    rotationCall === "q" ? "Quarter underrotation (q)" : "",
+    rotationCall === "<" ? "Underrotated (<)" : "",
+    rotationCall === "<<" ? "Downgraded (<<)" : "",
+    edgeCall === "!" ? "Unclear edge (!)" : "",
+    edgeCall === "e" ? "Wrong edge (e)" : "",
+    bonus ? "Second-half bonus (x)" : "",
+  ].filter(Boolean).join(" · ");
+  base.textContent = `${formatPoints(adjustedBase)}${bonus ? " (x)" : ""}`;
   score.textContent = formatPoints(value);
   return value;
 }
@@ -137,6 +215,9 @@ function updateProgram(program) {
   const values = elements.map((element, index) => {
     element.querySelector(".remove-element").setAttribute("aria-label", `Remove element ${index + 1} from ${program.label}`);
     element.querySelector(".element-name").setAttribute("aria-label", `Element ${index + 1} name in ${program.label}`);
+    element.querySelector(".element-rotation").setAttribute("aria-label", `Element ${index + 1} rotation call in ${program.label}`);
+    element.querySelector(".element-edge").setAttribute("aria-label", `Element ${index + 1} edge call in ${program.label}`);
+    element.querySelector(".element-bonus").setAttribute("aria-label", `Element ${index + 1} second-half bonus in ${program.label}`);
     element.querySelector(".element-grade").setAttribute("aria-label", `Element ${index + 1} GOE in ${program.label}`);
     return elementValue(element);
   });
@@ -212,7 +293,8 @@ function createProgram(label) {
     <h3>Technical elements</h3>
     <div class="element-table-wrap">
       <table class="element-table">
-        <thead><tr><th scope="col">Element name</th><th scope="col">Base value</th><th scope="col">GOE</th><th scope="col">Total</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <colgroup><col class="element-name-column"><col><col><col><col><col><col><col></colgroup>
+        <thead><tr><th scope="col">Element name</th><th scope="col">Base value</th><th scope="col">Rotation call</th><th scope="col">Edge call</th><th scope="col">X bonus</th><th scope="col">GOE</th><th scope="col">Total</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
         <tbody class="element-list"></tbody>
       </table>
     </div>

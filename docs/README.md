@@ -29,11 +29,14 @@ official skating data and photographs, may have separate rights and licenses.
 The program calculator compares two hypothetical segment scores using the singles
 and pairs scale in ISU Communication 2786 (updated June 2, 2026). Select an
 element by its ISU code and a GOE grade; its base and GOE values come directly
-from the published table. Clean jump combinations and sequences can be entered
-as codes joined with `+` (e.g. `3Lz+3T` or `3F+Eu+3S`); GOE is based on the
-most difficult jump. For combinations, technical calls, quintuple jumps, bonuses
-and repeated-jump reductions are not supported. The estimate appears once an
-element is selected, with a default GOE of zero. PCS is excluded until all three
+from the published table. Individual jumps support rotation calls (`q`, `<`,
+`<<`) and edge calls (`!`, `e`), and an optional X checkbox adds the 10%
+second-half bonus to an eligible jump. Clean jump combinations and sequences can
+be entered as codes joined with `+` (e.g. `3Lz+3T` or `3F+Eu+3S`); add a
+technical call to the affected jump code within the combination (e.g.
+`3Lze+3T`). GOE is based on the most difficult jump. Repeated-jump reductions
+and bonus eligibility are not checked. The estimate appears once an element is
+selected, with a default GOE of zero. PCS is excluded until all three
 already-averaged marks and the applicable factor are entered. The calculator
 rounds each factored component separately and adds it to the technical score.
 It subtracts the number of falls multiplied by the per-fall deduction (default
@@ -41,9 +44,9 @@ It subtracts the number of falls multiplied by the per-fall deduction (default
 fall penalties automatically.
 
 This is a planning estimate, not an official scoring system: users must apply the
-relevant season's technical calls, program requirements, bonuses, deductions,
-and component factors themselves. Bonus and repeated-jump reductions are not
-calculated. A single selected GOE is not a panel's trimmed average. Check the
+relevant season's program requirements, other bonuses, deductions, and component
+factors themselves. Repeated-jump reductions are not calculated. A single
+selected GOE is not a panel's trimmed average. Check the
 linked ISU rules. Calculator inputs are not saved after leaving the page.
 
 ## Build or refresh the site data

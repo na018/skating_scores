@@ -289,16 +289,41 @@ function performanceTitle(performance) {
   return `${formatDiscipline(performance.event_category)} · ${formatSegment(performance.segment)}`;
 }
 
+function additionalTechnicalCalls(elementType, marks) {
+  const embedded = new Set(elementType.match(/<<|[<>!*]/g) || []);
+  for (const flag of elementType.split(/\s+/).slice(1)) embedded.add(flag);
+  for (const match of elementType.matchAll(/\d(?:A|T|S|Lo|F|Lz)([!bqe<>*]+)/g)) {
+    for (const flag of match[1].match(/<<|[!bqe<>*]/g) || []) embedded.add(flag);
+  }
+  const calls = new Set();
+  for (const mark of marks) {
+    for (const flag of (mark?.technical_call || "").split(/[\s,]+/)) {
+      if (flag && !embedded.has(flag)) calls.add(flag);
+    }
+  }
+  return [...calls].join(" ");
+}
+
+function displayElementType(elementType) {
+  const [type, ...extra] = elementType.split(/\s+/);
+  const calls = additionalTechnicalCalls(type, [{ technical_call: extra.join(" ") }]);
+  return calls ? `${type} ${calls}` : type;
+}
+
 function soloPerformanceCard(performance) {
-  const elementRows = performance.elements.map((mark) => `
+  const elementRows = performance.elements.map((mark) => {
+    const type = displayElementType(mark.element_type || "Element");
+    const calls = additionalTechnicalCalls(type, [mark]);
+    return `
     <tr>
-      <td>${escapeHtml(mark.element_type || "Element")}${mark.technical_call ? ` <small>${escapeHtml(mark.technical_call)}</small>` : ""}</td>
+      <td>${escapeHtml(type)}${calls ? ` <small>${escapeHtml(calls)}</small>` : ""}</td>
       <td>${elementBaseValue(mark)}</td>
       <td>${mark.goe_total === null || mark.goe_total === undefined ? "—" : Number(mark.goe_total).toFixed(2)}</td>
       <td>${elementPanelScore(mark)}</td>
       <td class="score-cell">${displayScore(mark, performance.judge_panel)}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
   const elementTotalRow = `
     <tr class="total-row">
       <th scope="row">Total Element Score</th>
@@ -385,9 +410,11 @@ function comparisonTable(
   const rows = keys.map((key) => {
     const left = firstMap.get(key);
     const right = secondMap.get(key);
-    const title = left?.element_type || right?.element_type || left?.component || right?.component || key;
+    const rawTitle = left?.element_type || right?.element_type || left?.component || right?.component || key;
+    const title = kind === "element" ? displayElementType(rawTitle) : rawTitle;
+    const calls = kind === "element" ? additionalTechnicalCalls(title, [left, right]) : "";
     return `<tr>
-      <td>${escapeHtml(title)}${left?.technical_call || right?.technical_call ? `<br /><small>${escapeHtml(left?.technical_call || right?.technical_call)}</small>` : ""}</td>
+      <td>${escapeHtml(title)}${calls ? `<br /><small>${escapeHtml(calls)}</small>` : ""}</td>
       ${kind === "element" ? `<td>${elementBaseValue(left)}</td>` : ""}
       ${kind === "element" ? `<td>${left?.goe_total === null || left?.goe_total === undefined ? "—" : Number(left.goe_total).toFixed(2)}</td>` : ""}
       ${kind === "element" ? `<td>${elementPanelScore(left)}</td>` : ""}

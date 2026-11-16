@@ -124,6 +124,9 @@ GRAND_PRIX_EVENTS = (
     ISUEvent(
         "gpchn2026", "ISU Grand Prix Cup of China 2026", "season2627", "gpchn2026"
     ),
+    ISUEvent(
+        "gpusa2026", "ISU Grand Prix saatva Skate America 2026", "season2627", "gpusa2026"
+    ),
 )
 CHALLENGER_EVENTS = (
     ISUEvent(
