@@ -97,8 +97,8 @@ permits reuse and recording all required attribution details:
 python -m figure_skating_bias.site_export --portraits data/portraits.json
 ```
 
-The welcome dialog uses Nadin's profile photo and links to her Buy Me a Coffee,
-LinkedIn, and YouTube pages. It appears on the first visit and can be reopened from
+The welcome dialog uses Nadin's profile photo and links to her Buy Me a Coffee
+and YouTube pages. It appears on the first visit and can be reopened from
 the footer on either page. The navigation highlights the current page or section;
 on the scores page it also includes the project credit and a YouTube link.
 
